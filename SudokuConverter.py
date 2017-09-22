@@ -1,13 +1,14 @@
 import numpy as np
 from typing import List
 import itertools
+import sys
 
 
 class SudokuConverter(object):
 
-    def __init__(self, n: int, sudoku_arr: List[int]):
-        rows = cols = n
-        self.n = n
+    def __init__(self, sudoku_arr: List[int]):
+        self.n = int(len(sudoku_arr)**0.5)
+        rows = cols = self.n
         board = [[0 for j in range(cols)] for i in range(rows)]
         for i, cell in enumerate(sudoku_arr):
             entry: int = cell
@@ -15,7 +16,7 @@ class SudokuConverter(object):
             col_idx: int = int(i % cols)
             board[col_idx][row_idx] = entry
         self.board = np.array(board)
-        self.possible_entries = list(range(1, n+1))
+        self.possible_entries = list(range(1, self.n+1))
 
     def col(self, col_idx: int):
         return self.board[:, col_idx]
@@ -128,16 +129,34 @@ class SudokuConverter(object):
         """
         clauses = []
         block_n = int(self.n**0.5)
-        for r_offs in range(block_n):
-            for c_offs in range(block_n):
-                for v in self.possible_entries:
-                    for r in range(block_n):
-                        for c_i in range(block_n):
-                            for c_j in range(c_i+1, block_n):
-                                clause = [ (r_offs * block_n + r, c_offs * block_n + c_i, v, False),
-                                        (r_offs * block_n + r, c_offs * block_n + c_j, v, False) ]
-                                clauses.append(clause)
+        for v in self.possible_entries:
+            for r_offs in range(block_n):
+                for c_offs in range(block_n):
+                    for r_i in range(block_n):
+                        for r_j in range(r_i, block_n):
+                            for c_i in range(block_n):
+                                for c_j in range(c_i+1, block_n):
+                                    clause = [ (r_offs * block_n + r_i, c_offs * block_n + c_i, v, False),
+                                            (r_offs * block_n + r_j, c_offs * block_n + c_j, v, False) ]
+                                    #  print(clause, file=sys.stderr)
+                                    clauses.append(clause)
 
+        #  for v in self.possible_entries:
+        #      for r_offs in range(0, block_n):
+        #          for c_offs in range(0, block_n):
+        #              for r in range(0, self.n):
+        #                  for c in range(0, self.n):
+        #                      for c_j in range(r+1, self.n):
+        #                          #  if (r % block_n) > (c % block_n):
+        #                          #      continue
+        #                          if (r_offs * block_n + (r % block_n)) == (r_offs * block_n + (r % block_n)) and \
+        #                                  (c_offs * block_n + (c % block_n)) ==  (c_offs * block_n + (c_j % block_n)):
+        #                                      continue
+        #                          clause = [(r_offs * block_n + (r % block_n), c_offs * block_n + (c % block_n), v, False),
+        #                                  (r_offs * block_n + (r % block_n), c_offs * block_n + (c_j % block_n), v, False)]
+        #                          #  print(f"r : \t{r}\n mod: \t{r%block_n}", file=sys.stderr)
+        #                          print(clause, file=sys.stderr)
+        #                          clauses.append(clause)
 
         #  for r_offs in range(block_n):
         #      for c_offs in range(block_n):

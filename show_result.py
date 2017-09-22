@@ -4,8 +4,16 @@ import argparse
 import sys
 
 def main(args):
+    if args.pycosat:
+        import pycosat
+        cnf = sudoku.convert_to_sat()[1:]
+        solution = pycosat.solve(cnf, verbose=True)
+    else:
+        sol_str = "".join(args.solution.readlines())
+        solution = [int(x) for x in sol_str.split()[:-1]]
+
     if args.sudoku == '':
-        args.sudoku = '0' * args.n**2
+        args.sudoku = '0' * round(len(solution)**(1/3))**2
 
     if args.eval:
         arr = eval(args.sudoku)
@@ -13,16 +21,7 @@ def main(args):
         arr = list(args.sudoku.replace(args.fill_value, '0'))
     arr = [int(x) for x in arr]
 
-    sudoku = SudokuConverter(args.n, arr)
-    if args.pycosat:
-        import pycosat
-        cnf = sudoku.convert_to_sat()[1:]
-        solution = pycosat.solve(cnf, verbose=True)
-    else:
-        solution = [int(x) for x in args.solution.readline().split()[:-1]]
-
-    #  print(solution)
-    sudoku.print_board()
+    sudoku = SudokuConverter(arr)
     sudoku.enter_solution(solution)
     sudoku.print_board()
 
@@ -35,7 +34,6 @@ if __name__ == "__main__":
     parser.add_argument("--eval", type=bool, default=False)
     #  parser.add_argument("--solution", type=str)
     parser.add_argument("--fill_value", type=str, default='.')
-    parser.add_argument("-n", type=int, default=9)
     parser.add_argument("--pycosat", type=bool, default=False)
     args = parser.parse_args()
     main(args)

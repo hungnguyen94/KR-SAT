@@ -130,47 +130,22 @@ class SudokuConverter(object):
         clauses = []
         block_n = int(self.n**0.5)
         for v in self.possible_entries:
-            for r_offs in range(block_n):
-                for c_offs in range(block_n):
-                    for r_i in range(block_n):
-                        for r_j in range(r_i, block_n):
-                            for c_i in range(block_n):
-                                for c_j in range(c_i+1, block_n):
-                                    clause = [ (r_offs * block_n + r_i, c_offs * block_n + c_i, v, False),
-                                            (r_offs * block_n + r_j, c_offs * block_n + c_j, v, False) ]
-                                    #  print(clause, file=sys.stderr)
-                                    clauses.append(clause)
-
-        #  for v in self.possible_entries:
-        #      for r_offs in range(0, block_n):
-        #          for c_offs in range(0, block_n):
-        #              for r in range(0, self.n):
-        #                  for c in range(0, self.n):
-        #                      for c_j in range(r+1, self.n):
-        #                          #  if (r % block_n) > (c % block_n):
-        #                          #      continue
-        #                          if (r_offs * block_n + (r % block_n)) == (r_offs * block_n + (r % block_n)) and \
-        #                                  (c_offs * block_n + (c % block_n)) ==  (c_offs * block_n + (c_j % block_n)):
-        #                                      continue
-        #                          clause = [(r_offs * block_n + (r % block_n), c_offs * block_n + (c % block_n), v, False),
-        #                                  (r_offs * block_n + (r % block_n), c_offs * block_n + (c_j % block_n), v, False)]
-        #                          #  print(f"r : \t{r}\n mod: \t{r%block_n}", file=sys.stderr)
-        #                          print(clause, file=sys.stderr)
-        #                          clauses.append(clause)
-
-        #  for r_offs in range(block_n):
-        #      for c_offs in range(block_n):
-        #          for v in self.possible_entries:
-        #              for r in range(block_n):
-        #                  for c in range(block_n):
-        #                      for k in range(c+1, block_n):
-        #                          for l in range(block_n):
-        #                              clause = [ (r_offs * block_n + r, c_offs * block_n + c, v, False),
-        #                                      (r_offs * block_n + k, c_offs * block_n + l, v, False) ]
-        #                              clauses.append(clause)
+            for g in range(self.n):
+                r = int(g / block_n)
+                c = int(g % block_n)
+                for r_i, c_j in itertools.product(range(block_n*r, block_n*r+block_n), range(block_n*c, block_n*c+block_n)):
+                    for r_i2, c_j2 in itertools.product(range(block_n*r, block_n*r+block_n), range(block_n*c, block_n*c+block_n)):
+                        if r_i != r_i2 or c_j != c_j2:
+                            if r_i >= r_i2 and c_j >= c_j2:
+                                continue
+                            clause = [(r_i, c_j, v, False), (r_i2, c_j2, v, False)]
+                            clauses.append(clause)
         return clauses
 
     def assigned(self):
+        """
+        Constraint for the fixed cells, aka the givens.
+        """
         clauses = []
         for r, c, v in self.foreach_cell():
             if v != 0:
@@ -179,21 +154,40 @@ class SudokuConverter(object):
         return clauses
 
 
-    def convert_to_sat(self):
+    def convert_to_sat(self, encoding="minimal"):
+        switcher = {
+                "minimal": [
+                    self.cell_d,
+                    self.row_u,
+                    self.col_u,
+                    self.block_u,
+                    self.assigned
+                    ],
+                "efficient": [
+                    self.cell_d,
+                    self.cell_u,
+                    self.row_u,
+                    self.col_u,
+                    self.block_u,
+                    self.assigned
+                    ],
+                "extended": [
+                    self.cell_d,
+                    self.cell_u,
+                    self.row_d,
+                    self.row_u,
+                    self.col_d,
+                    self.col_u,
+                    self.block_d,
+                    self.block_u,
+                    self.assigned
+                    ]
+                }
+        clauses_encodings = switcher.get(encoding, switcher["minimal"])
+
         clauses = []
-        clauses.extend(self.cell_d())
-        clauses.extend(self.cell_u())
-
-        clauses.extend(self.row_d())
-        clauses.extend(self.row_u())
-
-        clauses.extend(self.col_d())
-        clauses.extend(self.col_u())
-
-        clauses.extend(self.block_d())
-        #  clauses.extend(self.block_u())
-
-        clauses.extend(self.assigned())
+        for enc in clauses_encodings:
+            clauses.extend(enc())
 
         dimacs = [[self.atom_to_dimacs(atom) for atom in disjunction] for disjunction in clauses]
 
@@ -238,7 +232,9 @@ class SudokuConverter(object):
         block_n = int(self.n**0.5)
         for i, row in self.foreach_row():
             if i % block_n == 0 and i != 0:
-                output += '-' * 3 * (self.n+block_n)
+                for i in range(block_n):
+                    output += '-' * (self.n)
+                    output += '\t'
                 output += "\n"
             for j, val in enumerate(row):
                 if j % block_n == 0 and j != 0:

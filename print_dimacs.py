@@ -15,7 +15,7 @@ def main(args):
 
     arr = [int(x) for x in arr]
     sudoku = SudokuConverter(arr)
-    pretty_print(sudoku.convert_to_sat())
+    pretty_print(sudoku.convert_to_sat(encoding=args.encoding))
 
 
 if __name__ == "__main__":
@@ -25,5 +25,6 @@ if __name__ == "__main__":
     parser.add_argument("-n", type=int, default=9, help="Create 0 filled sudoku if sudoku is not defined")
     parser.add_argument("--eval", type=str, default='0')
     parser.add_argument("--fill_value", type=str, default='.')
+    parser.add_argument("--encoding", type=str, default="minimal", choices=["minimal", "efficient", "extended"])
     args = parser.parse_args()
     main(args)

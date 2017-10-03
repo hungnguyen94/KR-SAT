@@ -3,6 +3,7 @@ import re
 import csv
 import sys
 import os
+import errno
 
 header_pattern = re.compile("^=+\[\s*(?P<header>\w+) Statistics\s*\]=+$")
 problem_stats_pattern = re.compile("^\|\s*(.+):\s*(\w+)(?:\w|\s)*\|$")
@@ -79,7 +80,13 @@ if __name__ == "__main__":
         else:
             offset = 0
 
-        with open(f"results/{os.path.basename(sudoku_file)}.csv", 'a') as csvfile:
+        results_dir = "results"
+        try:
+            os.makedirs(results_dir)
+        except OSError as exc:
+            if exc.errno == errno.EEXIST and os.path.isdir(results_dir):
+                pass
+        with open(os.path.join(results_dir, f"{os.path.basename(sudoku_file)}_{offset}.csv"), 'a') as csvfile:
 
             fieldnames = ["Sudoku", "Number of variables", "Number of clauses", "Parse time", "Eliminated clauses", "Simplification time", "Conflicts", "ORIGINAL Vars", "ORIGINAL Clauses", "ORIGINAL Literals", "LEARNT Limit",
                           "LEARNT Clauses", "LEARNT Lit/Cl", "Progress", "restarts", "conflicts", "decisions", "propagations", "conflict literals", "Memory used", "CPU time", "Encoding", "parsed_text", "solution"]
@@ -95,17 +102,17 @@ if __name__ == "__main__":
                         print(f"index: {i}")
                         print(f"Sudoku: {sudoku}")
                         print(f"Encoding: {encoding}")
-                        minisat = subprocess.Popen(f"python print_dimacs.py --sudoku={sudoku} --encoding={encoding} | docker exec -i minisat minisat",
+                        minisat = subprocess.Popen(f"python print_dimacs.py --sudoku={sudoku} --encoding={encoding} | minisat",
                                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
                         try:
                             out, err = minisat.communicate(timeout=60)
                             row = parse_minisat_output(
-                                err.decode().splitlines())
+                                out.decode().splitlines())
                             row["Sudoku"] = str(sudoku)
                             row["Encoding"] = encoding
                             row["parsed_text"] = err
                             row["solution"] = out
-                            print(err.decode())
+                            print(out.decode())
                             writer.writerow(row)
                         except subprocess.TimeoutExpired:
                             minisat.kill()
